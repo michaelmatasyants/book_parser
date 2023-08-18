@@ -3,7 +3,7 @@ import requests
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filepath, sanitize_filename
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin
 
 
 def check_for_redirect(url: str, text=''):
@@ -44,6 +44,7 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
 
 
 def get_url_of_book_text(book_url: str) -> str:
+    '''Returns url of text file from book url'''
     response = requests.get(book_url)
     soup = BeautifulSoup(response.content, 'lxml')
     all_tags_a = soup.find(class_='d_book').find_all('a')
@@ -52,7 +53,7 @@ def get_url_of_book_text(book_url: str) -> str:
             return urljoin('https://tululu.org/', tag.get("href"))
 
 
-def downlaod_img(book_url: str, folder='images/') -> Path:
+def downlaod_image(book_url: str, folder='images/') -> Path:
     """Loads image file
        Args:
         book_url - link to the image file.
@@ -72,7 +73,14 @@ def downlaod_img(book_url: str, folder='images/') -> Path:
     return path_to_save
 
 
+def download_comments(book_url: str) -> list[str]:
+    soup = BeautifulSoup(requests.get(book_url).content, 'lxml')
+    comment_tags = soup.find(id="content").find_all(class_='black')
+    return [tag.text for tag in comment_tags]
+
+
 def main():
+    '''Main function'''
     for book_id in range(1, 11):
         book_url = f'https://tululu.org/b{book_id}'
         try:
@@ -82,11 +90,12 @@ def main():
             continue
         book_name = f'{book_id} {get_book_name_and_author(book_url)[0]}'
         book_txt_url = get_url_of_book_text(book_url)
-        if book_txt_url:
-            download_txt(book_txt_url, book_name)
-        else:
+        if not book_txt_url:
             print(f'Data for "{book_name}" not found.')
-        downlaod_img(book_url)
+            continue
+        download_txt(book_txt_url, book_name)
+        downlaod_image(book_url)
+        download_comments(book_url)
 
 
 if __name__ == '__main__':
