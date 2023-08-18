@@ -79,6 +79,14 @@ def download_comments(book_url: str) -> list[str]:
     return [tag.text for tag in comment_tags]
 
 
+def parse_books_genres(book_url: str) -> list[str]:
+    soup = BeautifulSoup(requests.get(book_url).content, 'lxml')
+    tags = soup.find(id='content').find_all(class_='d_book')
+    for tag in tags:
+        if 'Жанр книги' in tag.text:
+            return [genre_tag.text for genre_tag in tag.find_all('a')]
+
+
 def main():
     '''Main function'''
     for book_id in range(1, 11):
@@ -96,6 +104,7 @@ def main():
         download_txt(book_txt_url, book_name)
         downlaod_image(book_url)
         download_comments(book_url)
+        git parse_books_genres(book_url)
 
 
 if __name__ == '__main__':
