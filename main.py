@@ -14,10 +14,10 @@ def check_for_redirect(response: requests.models.Response, text=''):
 def get_book_name_and_author(book_url: str) -> tuple:
     '''Parses book title and book author by book url'''
     book_response = requests.get(book_url)
+    book_response.raise_for_status()
     soup = BeautifulSoup(book_response.content, 'lxml')
     book_title_author = soup.find(id='content').find('h1').text.split('::')
     return book_title_author[0].strip(), book_title_author[1].strip()
-    get_book_name_and_author('https://tululu.org/b1/')
 
 
 def download_txt(url: str, filename: str, folder='books/') -> Path:
@@ -46,6 +46,7 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
 
 def main():
     download_txt('http://tululu.org/txt.php?id=1', 'filename')
+    get_book_name_and_author('https://tululu.org/b1/')
 
 
 if __name__ == '__main__':
