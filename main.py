@@ -104,7 +104,7 @@ def main():
         download_txt(book_txt_url, book_name)
         downlaod_image(book_url)
         download_comments(book_url)
-        git parse_books_genres(book_url)
+        parse_books_genres(book_url)
 
 
 if __name__ == '__main__':
