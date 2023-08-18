@@ -3,6 +3,7 @@ import requests
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filepath, sanitize_filename
+from urllib.parse import urlparse, urljoin
 
 
 def check_for_redirect(url: str, text=''):
@@ -34,9 +35,9 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
     sanitized_folder = Path(sanitize_filepath(folder))
     sanitized_filename = sanitize_filename(filename)
     sanitized_folder.mkdir(parents=True, exist_ok=True)
+    full_path = Path(sanitized_folder, f'{sanitized_filename}.txt')
     book_response = requests.get(url)
     book_response.raise_for_status()
-    full_path = Path(sanitized_folder, f'{sanitized_filename}.txt')
     with open(full_path, 'wb') as book:
         book.write(book_response.content)
     return full_path
@@ -48,7 +49,27 @@ def get_url_of_book_text(book_url: str) -> str:
     all_tags_a = soup.find(class_='d_book').find_all('a')
     for tag in all_tags_a:
         if 'скачать txt' in tag:
-            return f'https://tululu.org/{tag.get("href")}'
+            return urljoin('https://tululu.org/', tag.get("href"))
+
+
+def downlaod_img(book_url: str, folder='images/') -> Path:
+    """Loads image file
+       Args:
+        book_url - link to the image file.
+        folder - Folder to save to.
+       Returns:
+        Path to the file where the image is saved.
+    """
+    soup = BeautifulSoup(requests.get(book_url).content, 'lxml')
+    image_relative_path = soup.find(class_='bookimage').find('img').get('src')
+    image_url = urljoin('https://tululu.org/', image_relative_path)
+    image_name = image_relative_path.split('/')[-1]
+    sanitized_folder = Path(sanitize_filepath(folder))
+    sanitized_folder.mkdir(parents=True, exist_ok=True)
+    path_to_save = Path(sanitized_folder, image_name)
+    with open(path_to_save, 'wb') as image:
+        image.write(requests.get(image_url).content)
+    return path_to_save
 
 
 def main():
@@ -65,6 +86,7 @@ def main():
             download_txt(book_txt_url, book_name)
         else:
             print(f'Data for "{book_name}" not found.')
+        downlaod_img(book_url)
 
 
 if __name__ == '__main__':

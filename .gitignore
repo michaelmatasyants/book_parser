@@ -161,4 +161,5 @@ cython_debug/
 
 # Other files
 books
+images
 bs4_tutorial.py
