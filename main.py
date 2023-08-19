@@ -1,9 +1,9 @@
 from pathlib import Path
+from urllib.parse import urljoin
 import requests
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filepath, sanitize_filename
-from urllib.parse import urljoin
 
 
 def check_for_redirect(url: str, text=''):
@@ -73,18 +73,23 @@ def downlaod_image(book_url: str, folder='images/') -> Path:
     return path_to_save
 
 
-def download_comments(book_url: str) -> list[str]:
-    soup = BeautifulSoup(requests.get(book_url).content, 'lxml')
-    comment_tags = soup.find(id="content").find_all(class_='black')
-    return [tag.text for tag in comment_tags]
-
-
-def parse_books_genres(book_url: str) -> list[str]:
-    soup = BeautifulSoup(requests.get(book_url).content, 'lxml')
-    tags = soup.find(id='content').find_all(class_='d_book')
-    for tag in tags:
+def parse_book_page(book_html: bytes) -> dict:
+    '''Returns dict with parsed book title, book genres and book comments
+    '''
+    soup = BeautifulSoup(book_html, 'lxml')
+    title = soup.find(id='content').find('h1').text.split('::')[0].strip()
+    for tag in soup.find(id='content').find_all(class_='d_book'):
         if 'Жанр книги' in tag.text:
-            return [genre_tag.text for genre_tag in tag.find_all('a')]
+            genres = [genre_tag.text for genre_tag in tag.find_all('a')]
+            break
+    comment_tags = soup.find(id="content").find_all(class_='black')
+    comments = [tag.text for tag in comment_tags]
+
+    return {
+        'book title': title,
+        'book genres': genres,
+        'book comments': comments,
+    }
 
 
 def main():
@@ -94,17 +99,16 @@ def main():
         try:
             check_for_redirect(book_url, text=f'book id {book_id}')
         except HTTPError as err:
-            print(err)
+            print(err, end='\n\n')
             continue
         book_name = f'{book_id} {get_book_name_and_author(book_url)[0]}'
         book_txt_url = get_url_of_book_text(book_url)
         if not book_txt_url:
-            print(f'Data for "{book_name}" not found.')
+            print(f'Data for "{book_name}" not found.', end='\n\n')
             continue
         download_txt(book_txt_url, book_name)
         downlaod_image(book_url)
-        download_comments(book_url)
-        parse_books_genres(book_url)
+        print(parse_book_page(requests.get(book_url).content), end='\n\n')
 
 
 if __name__ == '__main__':
