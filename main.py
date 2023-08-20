@@ -4,6 +4,7 @@ import requests
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filepath, sanitize_filename
+import argparse
 
 
 def check_for_redirect(url: str, text=''):
@@ -77,7 +78,8 @@ def parse_book_page(book_html: bytes) -> dict:
     '''Returns dict with parsed book title, book genres and book comments
     '''
     soup = BeautifulSoup(book_html, 'lxml')
-    title = soup.find(id='content').find('h1').text.split('::')[0].strip()
+    title_and_author = soup.find(id='content').find('h1').text.split('::')
+    title, author = (el.strip() for el in title_and_author)
     for tag in soup.find(id='content').find_all(class_='d_book'):
         if 'Жанр книги' in tag.text:
             genres = [genre_tag.text for genre_tag in tag.find_all('a')]
@@ -87,6 +89,7 @@ def parse_book_page(book_html: bytes) -> dict:
 
     return {
         'book title': title,
+        'book author': author,
         'book genres': genres,
         'book comments': comments,
     }
@@ -94,21 +97,38 @@ def parse_book_page(book_html: bytes) -> dict:
 
 def main():
     '''Main function'''
-    for book_id in range(1, 11):
+    books_parser = argparse.ArgumentParser(
+        description='''Program downloads books from https://tululu.org/
+                       by passed ids of book pages.
+                       Enter start_id and end_id to download several books.
+                       Both ids would be included.'''
+    )
+    books_parser.add_argument('start_id', type=int)
+    books_parser.add_argument('end_id', type=int)
+    args = books_parser.parse_args()
+
+    for book_id in range(args.start_id, args.end_id + 1):
         book_url = f'https://tululu.org/b{book_id}'
         try:
             check_for_redirect(book_url, text=f'book id {book_id}')
         except HTTPError as err:
             print(err, end='\n\n')
             continue
-        book_name = f'{book_id} {get_book_name_and_author(book_url)[0]}'
+        parsed_book_page = parse_book_page(requests.get(book_url).content)
+        book_title = parsed_book_page['book title']
         book_txt_url = get_url_of_book_text(book_url)
         if not book_txt_url:
-            print(f'Data for "{book_name}" not found.', end='\n\n')
+            print('Data for book id',
+                  f'{book_id} "{book_title}"',
+                  'not found.',
+                  end='\n\n')
             continue
-        download_txt(book_txt_url, book_name)
+        download_txt(book_txt_url, f'{book_id} {book_title}')
         downlaod_image(book_url)
-        print(parse_book_page(requests.get(book_url).content), end='\n\n')
+        print(f"Название: {book_title}",
+              f"Автор: {parsed_book_page['book author']}",
+              f"Жанр: {'; '.join(parsed_book_page['book genres'])}",
+              sep='\n', end='\n\n')
 
 
 if __name__ == '__main__':
