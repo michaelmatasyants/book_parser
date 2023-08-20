@@ -103,8 +103,8 @@ def main():
                        Enter start_id and end_id to download several books.
                        Both ids would be included.'''
     )
-    books_parser.add_argument('start_id', type=int)
-    books_parser.add_argument('end_id', type=int)
+    books_parser.add_argument('-s', '--start_id', type=int)
+    books_parser.add_argument('-e', '--end_id', type=int)
     args = books_parser.parse_args()
 
     for book_id in range(args.start_id, args.end_id + 1):
