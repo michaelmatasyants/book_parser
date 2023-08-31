@@ -41,25 +41,24 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
     return full_path
 
 
-def get_url_of_book_text(book_url: str) -> str:
+def get_url_of_book_text(book_html: bytes) -> str:
     '''Returns url of text file from book url'''
-    response = requests.get(book_url)
-    soup = BeautifulSoup(response.content, 'lxml')
+    soup = BeautifulSoup(book_html, 'lxml')
     all_tags_a = soup.find(class_='d_book').find_all('a')
     for tag in all_tags_a:
         if 'скачать txt' in tag:
             return urljoin('https://tululu.org/', tag.get("href"))
 
 
-def downlaod_image(book_url: str, folder='images/') -> Path:
+def downlaod_image(book_html: bytes, folder='images/') -> Path:
     """Loads image file
        Args:
-        book_url - link to the image file.
+        book_html - Html page of the book.
         folder - Folder to save to.
        Returns:
         Path to the file where the image is saved.
     """
-    soup = BeautifulSoup(requests.get(book_url).content, 'lxml')
+    soup = BeautifulSoup(book_html, 'lxml')
     image_relative_path = soup.find(class_='bookimage').find('img').get('src')
     image_url = urljoin('https://tululu.org/', image_relative_path)
     image_name = image_relative_path.split('/')[-1]
@@ -106,29 +105,35 @@ def main():
 
     for book_id in range(args.start_id, args.end_id + 1):
         book_url = f'https://tululu.org/b{book_id}'
-        try:
-            response = requests.get(book_url)
-            response.raise_for_status()
-            if is_redirected(response):
-                raise HTTPError(f'Data for book id {book_id} not found.')
-        except HTTPError as err:
-            print(err, end='\n\n')
-            continue
-        parsed_book_page = parse_book_page(requests.get(book_url).content)
-        book_title = parsed_book_page['book title']
-        book_txt_url = get_url_of_book_text(book_url)
-        if not book_txt_url:
-            print('Data for book id',
-                  f'{book_id} "{book_title}"',
-                  'not found.',
-                  end='\n\n')
-            continue
-        download_txt(book_txt_url, f'{book_id} {book_title}')
-        downlaod_image(book_url)
-        print(f"Название: {book_title}",
-              f"Автор: {parsed_book_page['book author']}",
-              f"Жанр: {'; '.join(parsed_book_page['book genres'])}",
-              sep='\n', end='\n\n')
+        book_response = requests.get(book_url)
+        conn = True
+        while conn:
+            try:
+                book_response.raise_for_status()
+                if is_redirected(book_response):
+                    raise HTTPError(f'Data for book id {book_id} not found.')
+                book_response_content = book_response.content
+                parsed_book_page = parse_book_page(book_response_content)
+                book_title = parsed_book_page['book title']
+                book_txt_url = get_url_of_book_text(book_response_content)
+                if not book_txt_url:
+                    print('Data for book id', {book_id}, f'"{book_title}"',
+                          'not found.', end='\n\n')
+                    conn = False
+                    continue
+                download_txt(book_txt_url, filename=f'{book_id} {book_title}')
+                downlaod_image(book_response_content)
+                conn = False
+            except HTTPError as http_err:
+                print(http_err, end='\n\n')
+                conn = False
+            except requests.exceptions.ConnectionError as conn_err:
+                print(conn_err, end='\n\n')
+            else:
+                print(f"Название: {book_title}",
+                      f"Автор: {parsed_book_page['book author']}",
+                      f"Жанр: {'; '.join(parsed_book_page['book genres'])}",
+                      sep='\n', end='\n\n')
 
 
 if __name__ == '__main__':
