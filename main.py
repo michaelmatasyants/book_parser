@@ -7,12 +7,9 @@ from pathvalidate import sanitize_filepath, sanitize_filename
 import argparse
 
 
-def check_for_redirect(url: str, text=''):
-    '''Checks are there redirect in history of ressponse'''
-    response = requests.get(url)
-    response.raise_for_status()
-    if response.url == 'https://tululu.org/':
-        raise HTTPError(f'Data for {text} not found.')
+def is_redirected(response) -> bool:
+    '''Checks are there redirect in history of ressponse to the main page'''
+    return response.url == 'https://tululu.org/'
 
 
 def get_book_name_and_author(book_url: str) -> tuple:
@@ -110,7 +107,10 @@ def main():
     for book_id in range(args.start_id, args.end_id + 1):
         book_url = f'https://tululu.org/b{book_id}'
         try:
-            check_for_redirect(book_url, text=f'book id {book_id}')
+            response = requests.get(book_url)
+            response.raise_for_status()
+            if is_redirected(response):
+                raise HTTPError(f'Data for book id {book_id} not found.')
         except HTTPError as err:
             print(err, end='\n\n')
             continue
