@@ -41,13 +41,12 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
     return full_path
 
 
-def get_url_of_book_text(book_html: bytes) -> str:
+def get_url_of_book_text(book_html: bytes, book_title: str) -> str:
     '''Returns url of text file from book url'''
     soup = BeautifulSoup(book_html, 'lxml')
-    all_tags_a = soup.find(class_='d_book').find_all('a')
-    for tag in all_tags_a:
-        if 'скачать txt' in tag:
-            return urljoin('https://tululu.org/', tag.get("href"))
+    relative_link = soup.find(id='content').find(
+                        'a', title=f'{book_title} - скачать книгу txt')['href']
+    return urljoin('https://tululu.org/', relative_link)
 
 
 def downlaod_image(book_html: bytes, folder='images/') -> Path:
@@ -76,10 +75,8 @@ def parse_book_page(book_html: bytes) -> dict:
     soup = BeautifulSoup(book_html, 'lxml')
     title_and_author = soup.find(id='content').find('h1').text.split('::')
     title, author = (el.strip() for el in title_and_author)
-    for tag in soup.find(id='content').find_all(class_='d_book'):
-        if 'Жанр книги' in tag.text:
-            genres = [genre_tag.text for genre_tag in tag.find_all('a')]
-            break
+    genres = [tag.text for tag in soup.find(id='content')  \
+                .find('span', class_='d_book').find_all('a')]
     comment_tags = soup.find(id="content").find_all(class_='black')
     comments = [tag.text for tag in comment_tags]
 
@@ -115,7 +112,8 @@ def main():
                 book_response_content = book_response.content
                 parsed_book_page = parse_book_page(book_response_content)
                 book_title = parsed_book_page['book title']
-                book_txt_url = get_url_of_book_text(book_response_content)
+                book_txt_url = get_url_of_book_text(book_response_content,
+                                                    book_title)
                 if not book_txt_url:
                     print('Data for book id', {book_id}, f'"{book_title}"',
                           'not found.', end='\n\n')
