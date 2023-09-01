@@ -41,12 +41,14 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
     return full_path
 
 
-def get_url_of_book_text(book_html: bytes, book_title: str) -> str:
+def get_url_of_book_text(book_html: bytes,
+                         book_title: str,
+                         book_url: str) -> str:
     '''Returns url of text file from book url'''
     soup = BeautifulSoup(book_html, 'lxml')
     relative_link = soup.find(id='content').find(
                         'a', title=f'{book_title} - скачать книгу txt')['href']
-    return urljoin('https://tululu.org/', relative_link)
+    return urljoin(book_url, relative_link)
 
 
 def downlaod_image(book_html: bytes, folder='images/') -> Path:
@@ -113,7 +115,8 @@ def main():
                 parsed_book_page = parse_book_page(book_response_content)
                 book_title = parsed_book_page['book title']
                 book_txt_url = get_url_of_book_text(book_response_content,
-                                                    book_title)
+                                                    book_title,
+                                                    book_url)
                 if not book_txt_url:
                     print('Data for book id', {book_id}, f'"{book_title}"',
                           'not found.', end='\n\n')
