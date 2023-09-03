@@ -7,11 +7,6 @@ from pathvalidate import sanitize_filepath, sanitize_filename
 import argparse
 
 
-def is_redirected(response) -> bool:
-    '''Checks are there redirect in history of ressponse to the main page'''
-    return response.url == 'https://tululu.org/'
-
-
 def get_book_name_and_author(book_url: str) -> tuple:
     '''Parses book title and book author by book url'''
     book_response = requests.get(book_url)
@@ -41,28 +36,15 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
     return full_path
 
 
-def get_url_of_book_text(book_html: bytes,
-                         book_title: str,
-                         book_url: str) -> str:
-    '''Returns url of text file from book url'''
-    soup = BeautifulSoup(book_html, 'lxml')
-    relative_link = soup.find(id='content').find(
-                        'a', title=f'{book_title} - скачать книгу txt')['href']
-    return urljoin(book_url, relative_link)
-
-
-def downlaod_image(book_html: bytes, folder='images/') -> Path:
+def downlaod_image(image_url: str, folder='images/') -> Path:
     """Loads image file
        Args:
-        book_html - Html page of the book.
-        folder - Folder to save to.
+        image_url - url of book image.
+        folder - folder to save to.
        Returns:
         Path to the file where the image is saved.
     """
-    soup = BeautifulSoup(book_html, 'lxml')
-    image_relative_path = soup.find(class_='bookimage').find('img').get('src')
-    image_url = urljoin('https://tululu.org/', image_relative_path)
-    image_name = image_relative_path.split('/')[-1]
+    image_name = image_url.split('/')[-1]
     sanitized_folder = Path(sanitize_filepath(folder))
     sanitized_folder.mkdir(parents=True, exist_ok=True)
     path_to_save = Path(sanitized_folder, image_name)
@@ -71,8 +53,13 @@ def downlaod_image(book_html: bytes, folder='images/') -> Path:
     return path_to_save
 
 
-def parse_book_page(book_html: bytes) -> dict:
-    '''Returns dict with parsed book title, book genres and book comments
+def parse_book_page(book_html: bytes, book_url: str) -> dict:
+    '''Returns dict with parsed:
+        - title - book title (str)
+        - genres - book genres (list)
+        - comments - book comments (list)
+        - txt url - url for downloading book in txt format (str)
+        - image url - url of book image
     '''
     soup = BeautifulSoup(book_html, 'lxml')
     title_and_author = soup.find(id='content').find('h1').text.split('::')
@@ -82,11 +69,23 @@ def parse_book_page(book_html: bytes) -> dict:
     comment_tags = soup.find(id="content").find_all(class_='black')
     comments = [tag.text for tag in comment_tags]
 
+    book_txt_tag = soup.find(id='content').find(
+                    'a', title=f'{title} - скачать книгу txt')
+    if book_txt_tag is None:
+        raise HTTPError(f'Data for book "{title}" not found.')
+    txt_relative_link = book_txt_tag["href"]
+    txt_url = urljoin(book_url, txt_relative_link)
+
+    image_relative_path = soup.find(class_='bookimage').find('img').get('src')
+    image_url = urljoin(book_url, image_relative_path)
+
     return {
-        'book title': title,
-        'book author': author,
-        'book genres': genres,
-        'book comments': comments,
+        'title': title,
+        'author': author,
+        'genres': genres,
+        'comments': comments,
+        'txt url': txt_url,
+        'image url': image_url,
     }
 
 
@@ -101,29 +100,24 @@ def main():
     books_parser.add_argument('-s', '--start_id', default=1, type=int)
     books_parser.add_argument('-e', '--end_id', default=10, type=int)
     args = books_parser.parse_args()
+    main_page = 'https://tululu.org/'
 
     for book_id in range(args.start_id, args.end_id + 1):
-        book_url = f'https://tululu.org/b{book_id}'
-        book_response = requests.get(book_url)
+        book_url = f'{main_page }b{book_id}'
         conn = True
         while conn:
             try:
+                book_response = requests.get(book_url)
                 book_response.raise_for_status()
-                if is_redirected(book_response):
+                if book_response.url == main_page:
                     raise HTTPError(f'Data for book id {book_id} not found.')
                 book_response_content = book_response.content
-                parsed_book_page = parse_book_page(book_response_content)
-                book_title = parsed_book_page['book title']
-                book_txt_url = get_url_of_book_text(book_response_content,
-                                                    book_title,
-                                                    book_url)
-                if not book_txt_url:
-                    print('Data for book id', {book_id}, f'"{book_title}"',
-                          'not found.', end='\n\n')
-                    conn = False
-                    continue
-                download_txt(book_txt_url, filename=f'{book_id} {book_title}')
-                downlaod_image(book_response_content)
+                parsed_book_page = parse_book_page(book_response_content,
+                                                   book_url)
+                book_title = parsed_book_page.get('title')
+                download_txt(parsed_book_page.get('txt url'),
+                             filename=f'{book_id} {book_title}')
+                downlaod_image(parsed_book_page.get('image url'))
                 conn = False
             except HTTPError as http_err:
                 print(http_err, end='\n\n')
@@ -132,8 +126,8 @@ def main():
                 print(conn_err, end='\n\n')
             else:
                 print(f"Название: {book_title}",
-                      f"Автор: {parsed_book_page['book author']}",
-                      f"Жанр: {'; '.join(parsed_book_page['book genres'])}",
+                      f"Автор: {parsed_book_page.get('author')}",
+                      f"Жанр: {'; '.join(parsed_book_page.get('genres'))}",
                       sep='\n', end='\n\n')
 
 
