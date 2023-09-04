@@ -92,13 +92,21 @@ def parse_book_page(book_html: bytes, book_url: str) -> dict:
 def main():
     '''Main function'''
     books_parser = argparse.ArgumentParser(
-        description='''Program downloads books from https://tululu.org/
-                       by passed ids of book pages.
-                       Enter start_id and end_id to download several books.
-                       Both ids would be included.'''
+        description='''Program downloads books from https://tululu.org/ by
+                       passed book page ids. To load multiple books, enter
+                       start_id and end_id. Both identifiers will be included
+                       in the range. By default start_id = 1 end_id = 10.
+                       To load only one book, pass the same id for start_id and
+                       end_id.'''
     )
-    books_parser.add_argument('-s', '--start_id', default=1, type=int)
-    books_parser.add_argument('-e', '--end_id', default=10, type=int)
+    books_parser.add_argument('-s', '--start_id',
+                              default=1,
+                              type=int,
+                              help='start value of the range')
+    books_parser.add_argument('-e', '--end_id',
+                              default=10,
+                              type=int
+                              help='end value of the range')
     args = books_parser.parse_args()
     main_page = 'https://tululu.org/'
 
