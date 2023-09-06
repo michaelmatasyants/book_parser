@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 from urllib.parse import urljoin
+from time import sleep
 import requests
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
@@ -136,6 +137,7 @@ def main():
                 conn = False
             except requests.exceptions.ConnectionError as conn_err:
                 print(conn_err, end='\n\n')
+                sleep(180)
             else:
                 print(f"Название: {book_title}",
                       f"Автор: {parsed_book_page.get('author')}",
