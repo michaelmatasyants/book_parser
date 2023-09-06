@@ -7,15 +7,6 @@ from pathvalidate import sanitize_filepath, sanitize_filename
 import argparse
 
 
-def get_book_name_and_author(book_url: str) -> tuple:
-    '''Parses book title and book author by book url'''
-    book_response = requests.get(book_url)
-    book_response.raise_for_status()
-    soup = BeautifulSoup(book_response.content, 'lxml')
-    book_title_author = soup.find(id='content').find('h1').text.split('::')
-    return book_title_author[0].strip(), book_title_author[1].strip()
-
-
 def download_txt(url: str, filename: str, folder='books/') -> Path:
     """Loads txt file
        Args:
@@ -105,7 +96,7 @@ def main():
                               help='start value of the range')
     books_parser.add_argument('-e', '--end_id',
                               default=10,
-                              type=int
+                              type=int,
                               help='end value of the range')
     args = books_parser.parse_args()
     main_page = 'https://tululu.org/'
