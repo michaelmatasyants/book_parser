@@ -1,10 +1,18 @@
 from pathlib import Path
+import argparse
 from urllib.parse import urljoin
 import requests
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filepath, sanitize_filename
-import argparse
+
+
+def check_for_redirect(response: requests.models.Response, file, raise_err=True):
+    '''Checks for redirects and, if so, raises an HTTPError'''
+    if response.is_redirect:
+        if raise_err:
+            raise HTTPError(f'Data for {file} not found.')
+        print(f'Data for {file} not found.')
 
 
 def download_txt(url: str, filename: str, folder='books/') -> Path:
@@ -20,7 +28,8 @@ def download_txt(url: str, filename: str, folder='books/') -> Path:
     sanitized_filename = sanitize_filename(filename)
     sanitized_folder.mkdir(parents=True, exist_ok=True)
     full_path = Path(sanitized_folder, f'{sanitized_filename}.txt')
-    book_response = requests.get(url)
+    book_response = requests.get(url, allow_redirects=False)
+    check_for_redirect(book_response, file=filename)
     book_response.raise_for_status()
     with open(full_path, 'wb') as book:
         book.write(book_response.content)
@@ -40,7 +49,11 @@ def downlaod_image(image_url: str, folder='images/') -> Path:
     sanitized_folder.mkdir(parents=True, exist_ok=True)
     path_to_save = Path(sanitized_folder, image_name)
     with open(path_to_save, 'wb') as image:
-        image.write(requests.get(image_url).content)
+        image_response =requests.get(image_url, allow_redirects=False)
+        check_for_redirect(image_response,
+                           file=f'image {image_name}',
+                           raise_err=False)
+        image.write(image_response.content)
     return path_to_save
 
 
@@ -102,14 +115,13 @@ def main():
     main_page = 'https://tululu.org/'
 
     for book_id in range(args.start_id, args.end_id + 1):
-        book_url = f'{main_page }b{book_id}'
+        book_url = f'{main_page }b{book_id}/'
         conn = True
         while conn:
             try:
-                book_response = requests.get(book_url)
+                book_response = requests.get(book_url, allow_redirects=False)
                 book_response.raise_for_status()
-                if book_response.url == main_page:
-                    raise HTTPError(f'Data for book id {book_id} not found.')
+                check_for_redirect(book_response, file=f'book_id {book_id}')
                 book_response_content = book_response.content
                 parsed_book_page = parse_book_page(book_response_content,
                                                    book_url)
