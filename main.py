@@ -50,6 +50,7 @@ def downlaod_image(image_url: str, folder='images/') -> Path:
     path_to_save = Path(sanitized_folder, image_name)
     with open(path_to_save, 'wb') as image:
         image_response =requests.get(image_url, allow_redirects=False)
+        image_response.raise_for_status()
         check_for_redirect(image_response,
                            file=f'image {image_name}',
                            raise_err=False)
