@@ -12,7 +12,6 @@ def check_for_redirect(response: requests.models.Response, file):
     '''Checks for redirects and, if so, raises an HTTPError'''
     if response.is_redirect:
         raise HTTPError(f'Data for {file} not found.')
-        #print(f'Data for {file} not found.')
 
 
 def download_txt(url: str, filename: str, folder='books/') -> Path:
@@ -48,9 +47,9 @@ def downlaod_image(image_url: str, folder='images/') -> Path:
     sanitized_folder = Path(sanitize_filepath(folder))
     sanitized_folder.mkdir(parents=True, exist_ok=True)
     path_to_save = Path(sanitized_folder, image_name)
+    image_response =requests.get(image_url, allow_redirects=False)
+    image_response.raise_for_status()
     with open(path_to_save, 'wb') as image:
-        image_response =requests.get(image_url, allow_redirects=False)
-        image_response.raise_for_status()
         image.write(image_response.content)
     return path_to_save
 
